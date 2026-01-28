@@ -1,2 +1,4 @@
 wxPython
 pdfminer.six
+pdf2docx
+pymupdf
