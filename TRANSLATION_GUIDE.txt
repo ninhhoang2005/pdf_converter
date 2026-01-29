@@ -1,0 +1,24 @@
+TRANSALTION GUIDE FOR PDF CONVERTER
+=====================================
+
+To translate the application into your own language, follow these simple steps:
+
+1.  Open the 'lang' folder located in the application directory.
+2.  Copy the file 'en.json' and rename it to your language code (e.g., 'vi.json' for Vietnamese, 'fr.json' for French).
+3.  Open the new file with any text editor (Notepad, VS Code, etc.).
+4.  You will see lines like this:
+    "Select PDF": "Select PDF",
+
+    The part on the LEFT is the unique ID (do not change this).
+    The part on the RIGHT is the translation (change this).
+
+    Example for Vietnamese:
+    "Select PDF": "Chọn tệp PDF",
+
+5.  Save the file.
+6.  Open PDF Converter.
+7.  Press F4 (or go to Tools -> Options).
+8.  Select your new language from the list.
+9.  Click Save and Restart the application.
+
+Happy Translating!

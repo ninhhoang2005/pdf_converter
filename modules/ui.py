@@ -3,6 +3,9 @@ import os
 import threading
 from .pdf_viewer import PDFViewer
 from .converter import ConverterLogic
+from . import config
+from .i18n import _
+import modules.i18n as i18n
 
 APP_VERSION = "2.0"
 APP_TITLE = f"PDF Converter, version: {APP_VERSION}"
@@ -19,6 +22,64 @@ class DarkPanel(wx.Panel):
         super().__init__(parent, *args, **kwargs)
         self.SetBackgroundColour(COLOR_BG)
         self.SetForegroundColour(COLOR_FG)
+
+class SettingsDialog(wx.Dialog):
+    def __init__(self, parent):
+        super().__init__(parent, title=_("Settings"), size=(400, 300))
+        self.SetBackgroundColour(COLOR_BG)
+        self.SetForegroundColour(COLOR_FG)
+        
+        # Notebook for Tabs
+        notebook = wx.Notebook(self)
+        
+        # General Tab
+        general_panel = wx.Panel(notebook)
+        general_panel.SetBackgroundColour(COLOR_BG)
+        general_panel.SetForegroundColour(COLOR_FG)
+        
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        
+        # Language Selection
+        lbl_lang = wx.StaticText(general_panel, label=_("Language:"))
+        lbl_lang.SetForegroundColour(COLOR_FG)
+        vbox.Add(lbl_lang, 0, wx.ALL, 10)
+        
+        self.languages = i18n.get_available_languages()
+        current_lang = config.get_language()
+        
+        self.combo_lang = wx.ComboBox(general_panel, choices=self.languages, style=wx.CB_READONLY)
+        if current_lang in self.languages:
+            self.combo_lang.SetSelection(self.languages.index(current_lang))
+        else:
+            self.combo_lang.SetSelection(0) # Default to first (en)
+            
+        vbox.Add(self.combo_lang, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        
+        general_panel.SetSizer(vbox)
+        notebook.AddPage(general_panel, _("General"))
+        
+        # Main Layout
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
+        main_sizer.Add(notebook, 1, wx.EXPAND | wx.ALL, 10)
+        
+        # Buttons
+        btns = wx.BoxSizer(wx.HORIZONTAL)
+        btn_save = wx.Button(self, wx.ID_OK, label=_("Save"))
+        btn_cancel = wx.Button(self, wx.ID_CANCEL, label=_("Cancel"))
+        
+        btns.Add(btn_save, 1, wx.RIGHT, 10)
+        btns.Add(btn_cancel, 1)
+        
+        main_sizer.Add(btns, 0, wx.EXPAND | wx.ALL, 10)
+        
+        self.SetSizer(main_sizer)
+        self.CenterOnParent()
+
+    def get_selected_language(self):
+        idx = self.combo_lang.GetSelection()
+        if idx != wx.NOT_FOUND:
+            return self.languages[idx]
+        return 'en'
 
 class ConversionProgressDialog(wx.Dialog):
     def __init__(self, parent):
@@ -117,9 +178,47 @@ class ConvertOptionsDialog(wx.Dialog):
             "path": self.txt_path.GetValue()
         }
 
+class AboutDialog(wx.Dialog):
+    def __init__(self, parent):
+        super().__init__(parent, title="About", size=(400, 350))
+        self.SetBackgroundColour(COLOR_BG)
+        self.SetForegroundColour(COLOR_FG)
+        
+        panel = wx.Panel(self)
+        panel.SetBackgroundColour(COLOR_BG)
+        panel.SetForegroundColour(COLOR_FG)
+        
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        
+        # Content
+        about_text = (
+            _("You want to read a PDF file, but you don't have Word?\n") +
+            _("Or you need to convert a PDF file to various formats?\n\n") +
+            _("There is only PDF Converter.\n") +
+            _("PDF Converter is a versatile software that helps users view and extract text easily.\n\n") +
+            _("Version and Development Info:\n\n") +
+            f"{_('Version, ')} {APP_VERSION}\n\n" +
+            _("Developer: Technology Entertainment Studio.")
+        )
+        
+        txt_info = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_CENTER)
+        txt_info.SetBackgroundColour(COLOR_PANEL)
+        txt_info.SetForegroundColour(COLOR_FG)
+        txt_info.SetValue(about_text)
+        
+        vbox.Add(txt_info, 1, wx.EXPAND | wx.ALL, 15)
+        
+        # Close Button
+        btn_close = wx.Button(panel, wx.ID_CANCEL, label="Close")
+        vbox.Add(btn_close, 0, wx.ALIGN_CENTER | wx.BOTTOM, 15)
+        
+        panel.SetSizer(vbox)
+        self.CenterOnParent()
+
 class MainFrame(wx.Frame):
     def __init__(self):
-        super().__init__(None, title=APP_TITLE, size=(900, 700))
+        # We use the key "APP_TITLE" to match the JSON file
+        super().__init__(None, title=_("APP_TITLE"), size=(900, 700))
         self.SetBackgroundColour(COLOR_BG)
         
         self.viewer = None
@@ -139,19 +238,26 @@ class MainFrame(wx.Frame):
         
         # File Menu
         file_menu = wx.Menu()
-        self.m_open = file_menu.Append(wx.ID_OPEN, "&Open PDF\tCtrl+O", "Open a PDF file for reading")
-        self.m_close = file_menu.Append(wx.ID_CLOSE, "Close PDF\tCtrl+F4", "Close the current PDF")
+        self.m_open = file_menu.Append(wx.ID_OPEN, _("&Open PDF\tCtrl+O"), _("Open a PDF file for reading"))
+        self.m_close = file_menu.Append(wx.ID_CLOSE, _("Close PDF\tCtrl+F4"), _("Close the current PDF"))
         self.m_close.Enable(False) # Initially disabled
         file_menu.AppendSeparator()
-        self.m_exit = file_menu.Append(wx.ID_EXIT, "E&xit\tAlt+F4", "Exit the application")
+        self.m_exit = file_menu.Append(wx.ID_EXIT, _("E&xit\tAlt+F4"), _("Exit the application"))
         
         # Tools Menu
         tools_menu = wx.Menu()
-        self.m_convert = tools_menu.Append(wx.ID_ANY, "&Convert Options...\tAlt+C", "Open conversion options")
-        self.m_convert.Enable(False) # Initially disabled
+        self.m_convert = tools_menu.Append(wx.ID_ANY, _("&Convert Options...\tAlt+C"), _("Open conversion options"))
+        self.m_convert.Enable(False)
+        tools_menu.AppendSeparator()
+        self.m_options = tools_menu.Append(wx.ID_ANY, _("&Options...\tF4"), _("Open application options"))
         
-        menubar.Append(file_menu, "&File")
-        menubar.Append(tools_menu, "&Tools")
+        # Help Menu
+        help_menu = wx.Menu()
+        self.m_about = help_menu.Append(wx.ID_ABOUT, _("&About...\tF1"), _("About this application"))
+        
+        menubar.Append(file_menu, _("&File"))
+        menubar.Append(tools_menu, _("&Tools"))
+        menubar.Append(help_menu, _("&Help"))
         self.SetMenuBar(menubar)
         
         # Bind Events
@@ -159,19 +265,21 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_close_pdf, self.m_close)
         self.Bind(wx.EVT_MENU, self.on_exit, self.m_exit)
         self.Bind(wx.EVT_MENU, self.on_convert_options, self.m_convert)
+        self.Bind(wx.EVT_MENU, self.on_options, self.m_options)
+        self.Bind(wx.EVT_MENU, self.on_about, self.m_about)
 
         # --- Preview Area (Accessible Text Box) ---
         self.preview_text = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2)
         self.preview_text.SetBackgroundColour(COLOR_PANEL)
         self.preview_text.SetForegroundColour(COLOR_FG)
         self.preview_text.SetFont(wx.Font(11, wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
-        self.preview_text.SetValue("Welcome. Press Ctrl+O to open a PDF file.")
+        self.preview_text.SetValue(_("Welcome. Press Ctrl+O to open a PDF file."))
         
         # --- Status Bar ---
         self.status_bar = self.CreateStatusBar()
         self.status_bar.SetBackgroundColour(COLOR_BG)
         self.status_bar.SetForegroundColour(COLOR_FG)
-        self.status_bar.SetStatusText("Ready")
+        self.status_bar.SetStatusText(_("Ready - Please select a PDF file."))
 
         # Layout
         self.main_sizer.Add(self.preview_text, 1, wx.EXPAND | wx.ALL, 10)
@@ -180,6 +288,21 @@ class MainFrame(wx.Frame):
 
     def on_exit(self, event):
         self.Close()
+
+    def on_about(self, event):
+        dlg = AboutDialog(self)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def on_options(self, event):
+        dlg = SettingsDialog(self)
+        if dlg.ShowModal() == wx.ID_OK:
+            lang = dlg.get_selected_language()
+            if lang != config.get_language():
+                config.set_language(lang)
+                wx.MessageBox(_("Please restart the application to apply language changes."), 
+                              _("Restart Required"), wx.ICON_INFORMATION)
+        dlg.Destroy()
 
     def on_select_file(self, event):
         with wx.FileDialog(self, "Open PDF", wildcard="PDF files (*.pdf)|*.pdf",
