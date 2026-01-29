@@ -8,7 +8,7 @@ from .i18n import _
 import modules.i18n as i18n
 
 APP_VERSION = "2.0"
-APP_TITLE = f"PDF Converter, version: {APP_VERSION}"
+APP_TITLE = f"{_('PDF Converter, version: ')} {APP_VERSION}"
 
 # Dark Theme Colors
 COLOR_BG = "#2E2E2E" # Dark Grey
@@ -217,8 +217,8 @@ class AboutDialog(wx.Dialog):
 
 class MainFrame(wx.Frame):
     def __init__(self):
-        # We use the key "APP_TITLE" to match the JSON file
-        super().__init__(None, title=_("APP_TITLE"), size=(900, 700))
+        # We use the key "APP_TITLE" to match the JSON file and format it with version
+        super().__init__(None, title=_("APP_TITLE").format(APP_VERSION), size=(900, 700))
         self.SetBackgroundColour(COLOR_BG)
         
         self.viewer = None
