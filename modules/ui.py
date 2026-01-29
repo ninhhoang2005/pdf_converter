@@ -51,8 +51,8 @@ class ConversionProgressDialog(wx.Dialog):
         wx.CallAfter(self.log_text.AppendText, msg + "\n")
 
 class ConvertOptionsDialog(wx.Dialog):
-    def __init__(self, parent):
-        super().__init__(parent, title="Conversion Options", size=(350, 200))
+    def __init__(self, parent, default_path):
+        super().__init__(parent, title="Conversion Options", size=(450, 300))
         self.SetBackgroundColour(COLOR_BG)
         self.SetForegroundColour(COLOR_FG)
         
@@ -62,33 +62,60 @@ class ConvertOptionsDialog(wx.Dialog):
         
         vbox = wx.BoxSizer(wx.VERTICAL)
         
-        # Label
-        lbl = wx.StaticText(panel, label="Select Output Format:")
-        lbl.SetForegroundColour(COLOR_FG)
-        vbox.Add(lbl, 0, wx.ALL, 15)
+        # --- Format Section ---
+        lbl_fmt = wx.StaticText(panel, label="Select Output Format:")
+        lbl_fmt.SetForegroundColour(COLOR_FG)
+        vbox.Add(lbl_fmt, 0, wx.LEFT | wx.RIGHT | wx.TOP, 15)
         
-        # Combo
         self.combo_format = wx.ComboBox(panel, choices=["TXT", "HTML", "DOCX"], style=wx.CB_READONLY)
         self.combo_format.SetSelection(0)
-        vbox.Add(self.combo_format, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 15)
+        vbox.Add(self.combo_format, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 15)
         
-        # Buttons
-        hbox = wx.BoxSizer(wx.HORIZONTAL)
+        # --- Output Path Section ---
+        lbl_path = wx.StaticText(panel, label="Output Folder:")
+        lbl_path.SetForegroundColour(COLOR_FG)
+        vbox.Add(lbl_path, 0, wx.LEFT | wx.RIGHT | wx.TOP, 15)
+        
+        hbox_path = wx.BoxSizer(wx.HORIZONTAL)
+        self.txt_path = wx.TextCtrl(panel, value=default_path)
+        self.txt_path.SetBackgroundColour(COLOR_PANEL)
+        self.txt_path.SetForegroundColour(COLOR_FG)
+        
+        btn_browse = wx.Button(panel, label="Browse...")
+        btn_browse.Bind(wx.EVT_BUTTON, self.on_browse)
+        
+        hbox_path.Add(self.txt_path, 1, wx.RIGHT, 5)
+        hbox_path.Add(btn_browse, 0)
+        
+        vbox.Add(hbox_path, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 15)
+        
+        # --- Buttons ---
+        vbox.AddStretchSpacer(1)
+        hbox_btns = wx.BoxSizer(wx.HORIZONTAL)
         btn_convert = wx.Button(panel, wx.ID_OK, label="Convert")
         btn_cancel = wx.Button(panel, wx.ID_CANCEL, label="Cancel")
         
         btn_convert.SetDefault()
         
-        hbox.Add(btn_convert, 1, wx.RIGHT, 10)
-        hbox.Add(btn_cancel, 1)
+        hbox_btns.Add(btn_convert, 1, wx.RIGHT, 10)
+        hbox_btns.Add(btn_cancel, 1)
         
-        vbox.Add(hbox, 0, wx.EXPAND | wx.ALL, 15)
+        vbox.Add(hbox_btns, 0, wx.EXPAND | wx.ALL, 15)
         
         panel.SetSizer(vbox)
         self.CenterOnParent()
 
-    def get_format(self):
-        return self.combo_format.GetValue().lower()
+    def on_browse(self, event):
+        with wx.DirDialog(self, "Select Output Directory", self.txt_path.GetValue(),
+                          style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST) as dlg:
+            if dlg.ShowModal() == wx.ID_OK:
+                self.txt_path.SetValue(dlg.GetPath())
+
+    def get_settings(self):
+        return {
+            "format": self.combo_format.GetValue().lower(),
+            "path": self.txt_path.GetValue()
+        }
 
 class MainFrame(wx.Frame):
     def __init__(self):
@@ -112,22 +139,26 @@ class MainFrame(wx.Frame):
         
         # File Menu
         file_menu = wx.Menu()
-        m_open = file_menu.Append(wx.ID_OPEN, "&Open PDF\tCtrl+O", "Open a PDF file for reading")
+        self.m_open = file_menu.Append(wx.ID_OPEN, "&Open PDF\tCtrl+O", "Open a PDF file for reading")
+        self.m_close = file_menu.Append(wx.ID_CLOSE, "Close PDF\tCtrl+F4", "Close the current PDF")
+        self.m_close.Enable(False) # Initially disabled
         file_menu.AppendSeparator()
-        m_exit = file_menu.Append(wx.ID_EXIT, "E&xit\tAlt+F4", "Exit the application")
+        self.m_exit = file_menu.Append(wx.ID_EXIT, "E&xit\tAlt+F4", "Exit the application")
         
         # Tools Menu
         tools_menu = wx.Menu()
-        m_convert = tools_menu.Append(wx.ID_ANY, "&Convert Options...\tAlt+C", "Open conversion options")
+        self.m_convert = tools_menu.Append(wx.ID_ANY, "&Convert Options...\tAlt+C", "Open conversion options")
+        self.m_convert.Enable(False) # Initially disabled
         
         menubar.Append(file_menu, "&File")
         menubar.Append(tools_menu, "&Tools")
         self.SetMenuBar(menubar)
         
         # Bind Events
-        self.Bind(wx.EVT_MENU, self.on_select_file, m_open)
-        self.Bind(wx.EVT_MENU, self.on_exit, m_exit)
-        self.Bind(wx.EVT_MENU, self.on_convert_options, m_convert)
+        self.Bind(wx.EVT_MENU, self.on_select_file, self.m_open)
+        self.Bind(wx.EVT_MENU, self.on_close_pdf, self.m_close)
+        self.Bind(wx.EVT_MENU, self.on_exit, self.m_exit)
+        self.Bind(wx.EVT_MENU, self.on_convert_options, self.m_convert)
 
         # --- Preview Area (Accessible Text Box) ---
         self.preview_text = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2)
@@ -161,6 +192,25 @@ class MainFrame(wx.Frame):
             self.load_preview(path)
             self.status_bar.SetStatusText(f"Loaded. Use Alt+C to convert.")
             self.preview_text.SetFocus() 
+            self.update_menu_state(True)
+
+    def on_close_pdf(self, event):
+        # Close viewer
+        if self.viewer:
+            self.viewer.close()
+            self.viewer = None
+        
+        # Reset state
+        self.selected_file = None
+        self.preview_text.SetValue("Welcome. Press Ctrl+O to open a PDF file.")
+        
+        # Update Menu
+        self.update_menu_state(False)
+        self.status_bar.SetStatusText("PDF Closed.")
+
+    def update_menu_state(self, has_file):
+        self.m_close.Enable(has_file)
+        self.m_convert.Enable(has_file)
 
     def load_preview(self, path):
         self.status_bar.SetStatusText("Loading text preview...")
@@ -184,18 +234,22 @@ class MainFrame(wx.Frame):
 
     def on_convert_options(self, event):
         if not self.selected_file:
-            wx.MessageBox("Please open a PDF file first (Ctrl+O).", "No File Selected", wx.ICON_WARNING)
             return
             
-        dlg = ConvertOptionsDialog(self)
+        default_dir = os.path.dirname(self.selected_file)
+        dlg = ConvertOptionsDialog(self, default_dir)
+        
         if dlg.ShowModal() == wx.ID_OK:
-            fmt = dlg.get_format()
+            settings = dlg.get_settings()
             dlg.Destroy()
-            self.start_conversion(fmt)
+            self.start_conversion(settings)
         else:
             dlg.Destroy()
 
-    def start_conversion(self, fmt):
+    def start_conversion(self, settings):
+        fmt = settings['format']
+        output_dir = settings['path']
+        
         # Hide Main Window
         self.Hide()
         
@@ -204,15 +258,17 @@ class MainFrame(wx.Frame):
         self.progress_dialog.Show()
         self.progress_dialog.append_log(f"Starting conversion of {os.path.basename(self.selected_file)}...")
         self.progress_dialog.append_log(f"Target format: {fmt.upper()}")
+        self.progress_dialog.append_log(f"Output folder: {output_dir}")
         
         # Start Thread
-        thread = threading.Thread(target=self.run_conversion_thread, args=(fmt,))
+        thread = threading.Thread(target=self.run_conversion_thread, args=(fmt, output_dir))
         thread.start()
 
-    def run_conversion_thread(self, fmt):
+    def run_conversion_thread(self, fmt, output_dir):
         try:
-            base_path = os.path.splitext(self.selected_file)[0]
-            output_path = f"{base_path}.{fmt}"
+            base_name = os.path.basename(self.selected_file)
+            name_no_ext = os.path.splitext(base_name)[0]
+            output_path = os.path.join(output_dir, f"{name_no_ext}.{fmt}")
             
             if self.progress_dialog:
                 self.progress_dialog.append_log("Processing file...")
