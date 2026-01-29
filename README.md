@@ -13,3 +13,7 @@ For developers running from source:
 1.  Install **Python 3.x**.
 2.  Install libraries: `pip install -r requirements.txt`
 3.  Run `python pdf_converter/main.py`.
+
+## software developer community
+
+[join my Telegram group to collaborate and discuss the software's code together](https://t.me/pdfcvtproject)
