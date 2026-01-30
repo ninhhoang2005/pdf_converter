@@ -1,75 +1,58 @@
-import json
+import gettext
 import os
-import glob
 from . import config
 
-_current_lang = {}
-_default_lang = {}
+_current_trans = None
 
 def load_language():
-    """Loads the language specified in the config."""
-    global _current_lang, _default_lang
+    """Loads the language specified in the config using gettext."""
+    global _current_trans
     
     lang_code = config.get_language()
     
-    # Load default English (template) first to ensure we always have a fallback
-    default_path = os.path.join("lang", "en.json")
-    if os.path.exists(default_path):
-        with open(default_path, 'r', encoding='utf-8') as f:
-            _default_lang = json.load(f)
+    # Path to locales folder: d:/python code/PDF to text/locales
+    # We assume 'locales' is in the root of the project, parent of 'modules'
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    locales_dir = os.path.join(base_dir, 'locales')
     
-    # If using English, just use default
+    # English is usually the fallback/source, so we use NullTranslations (identity)
     if lang_code == 'en':
-        _current_lang = _default_lang
+        _current_trans = gettext.NullTranslations()
         return
 
-    # Load target language
-    lang_path = os.path.join("lang", f"{lang_code}.json")
-    if os.path.exists(lang_path):
-        try:
-            with open(lang_path, 'r', encoding='utf-8') as f:
-                _current_lang = json.load(f)
-        except Exception as e:
-            print(f"Error loading language {lang_code}: {e}")
-            _current_lang = _default_lang
-    else:
-        _current_lang = _default_lang
+    try:
+        # Tries to load locales/{lang_code}/LC_MESSAGES/messages.mo
+        _current_trans = gettext.translation('messages', localedir=locales_dir, languages=[lang_code])
+    except FileNotFoundError:
+        # Fallback to English if .mo file not found
+        # print(f"Translation file not found for {lang_code}, falling back to English.")
+        _current_trans = gettext.NullTranslations()
+    except Exception as e:
+        print(f"Error loading translation: {e}")
+        _current_trans = gettext.NullTranslations()
 
 def _(text):
-    """Translates the text using the loaded language dictionary."""
-    # Try current language
-    if text in _current_lang:
-        return _current_lang[text]
-    
-    # Fallback to default (English) explicitly if loaded, though normally we expect the key IS the English text
-    # But if we used keys like "MENU_OPEN" instead of English text, we'd need this.
-    # User strings are likely keys themselves.
-    
-    return text
+    """Translates the text using the loaded gettext object."""
+    if _current_trans is None:
+        load_language()
+    return _current_trans.gettext(text)
 
 def get_available_languages():
-    """Returns a list of available language codes found in the lang folder."""
-    langs = []
+    """Returns a list of available language codes found in the locales folder."""
+    langs = ["en"]
     
-    # Always include English
-    langs.append("en")
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    locales_dir = os.path.join(base_dir, 'locales')
     
-    if not os.path.exists("lang"):
-        return langs
-        
-    for file in glob.glob("lang/*.json"):
-        filename = os.path.basename(file)
-        code = os.path.splitext(filename)[0]
-        if code != "en":
-            langs.append(code)
+    if os.path.exists(locales_dir):
+        for name in os.listdir(locales_dir):
+            dir_path = os.path.join(locales_dir, name)
+            # Check if it has LC_MESSAGES/messages.mo
+            mo_path = os.path.join(dir_path, "LC_MESSAGES", "messages.mo")
+            if os.path.isdir(dir_path) and os.path.exists(mo_path):
+                langs.append(name)
     
     return sorted(langs)
 
-# Initialize on import
-if not os.path.exists("lang"):
-    try:
-        os.makedirs("lang")
-    except:
-        pass
-
+# Initialize
 load_language()

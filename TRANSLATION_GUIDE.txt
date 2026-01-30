@@ -1,24 +1,58 @@
-TRANSALTION GUIDE FOR PDF CONVERTER
-=====================================
+TRANSLATION GUIDE - PDF CONVERTER
+===================================
 
-To translate the application into your own language, follow these simple steps:
+This application uses the industry-standard Gettext translation system.
 
-1.  Open the 'lang' folder located in the application directory.
-2.  Copy the file 'en.json' and rename it to your language code (e.g., 'vi.json' for Vietnamese, 'fr.json' for French).
-3.  Open the new file with any text editor (Notepad, VS Code, etc.).
-4.  You will see lines like this:
-    "Select PDF": "Select PDF",
+HOW TO TRANSLATE (RECOMMENDED)
+------------------------------
 
-    The part on the LEFT is the unique ID (do not change this).
-    The part on the RIGHT is the translation (change this).
+1.  **Install Poedit**: Download and install Poedit (https://poedit.net/), a free editor for translation files.
+2.  **Open the Template**:
+    -   Go to the `locales` folder.
+    -   Open `messages.pot` with Poedit.
+3.  **Create New Translation**:
+    -   In Poedit, click "Create new translation".
+    -   Select your language (e.g., French, Japanese).
+4.  **Translate**:
+    -   Poedit will show you the list of English strings.
+    -   Click on a string and type the translation in the bottom box.
+5.  **Save**:
+    -   Save the file. Poedit will ask where to save.
+    -   Navigate to `locales` folder.
+    -   Create a folder for your language code (e.g., `fr` for French).
+    -   Inside that, create a folder named `LC_MESSAGES`.
+    -   Save the file as `messages.po` inside `LC_MESSAGES`.
+    -   **Important**: Poedit will automatically generate a `messages.mo` file next to it. This binary file is what the app actually uses.
 
-    Example for Vietnamese:
-    "Select PDF": "Chọn tệp PDF",
+    Structure Example:
+    locales/
+    ├── messages.pot
+    ├── vi/
+    │   └── LC_MESSAGES/
+    │       ├── messages.po
+    │       └── messages.mo
+    └── fr/
+        └── LC_MESSAGES/
+            ├── messages.po
+            └── messages.mo
 
-5.  Save the file.
-6.  Open PDF Converter.
-7.  Press F4 (or go to Tools -> Options).
-8.  Select your new language from the list.
-9.  Click Save and Restart the application.
+6.  **Activate**:
+    -   Open PDF Converter.
+    -   Press F4 (Options).
+    -   Output language should now be selectable.
+    -   Select and Restart.
 
-Happy Translating!
+UPDATING TRANSLATIONS
+---------------------
+If the application updates and has new strings:
+1.  Open your existing `.po` file in Poedit.
+2.  Go to **Translation** -> **Update from POT file...**
+3.  Select the updated `locales/messages.pot`.
+4.  New strings will appear for you to translate.
+
+ADVANCED (Command Line)
+-----------------------
+If you don't use Poedit, you need to compile `.po` to `.mo` manually.
+We have included a helper script:
+    python tools_i18n.py
+This script will scan the code to update `messages.pot` and verify existing files.

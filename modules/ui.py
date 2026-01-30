@@ -217,8 +217,8 @@ class AboutDialog(wx.Dialog):
 
 class MainFrame(wx.Frame):
     def __init__(self):
-        # We use the key "APP_TITLE" to match the JSON file and format it with version
-        super().__init__(None, title=_("APP_TITLE").format(APP_VERSION), size=(900, 700))
+        # We use the full English text as the key for Gettext
+        super().__init__(None, title=_("PDF Converter, version: {}").format(APP_VERSION), size=(900, 700))
         self.SetBackgroundColour(COLOR_BG)
         
         self.viewer = None
